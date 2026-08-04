@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="/dinanta/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tap tonight's service counts at close and see how many of your chair-minutes actually got used — chair-minutes worked against chair-minutes open. Then print one A4 sheet of the month's service mix. Free and private: no accounts, no cloud, no third-party requests. This demo stores nothing.">
+
+  <meta property="og:title" content="Salon chair utilisation calculator — dinanta">
+  <meta property="og:description" content="Chair-minutes worked against chair-minutes open, every night. No accounts, no cloud, no appointments — a SQLite file on your own machine.">
+  <meta property="og:type" content="website">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="dinanta">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>Salon Chair Utilisation Calculator — dinanta</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+      font-feature-settings: "tnum"; }
+    #seo-landing { max-width: 760px; margin: 0 auto; padding: 24px 20px 8px; line-height: 1.55;
+      color: #241820; background: #FBF6F8; }
+    #seo-landing h1 { font-size: 1.5rem; color: #9B1C57; margin: 0 0 10px; line-height: 1.25; }
+    #seo-landing h2 { font-size: 1.05rem; margin: 22px 0 6px; }
+    #seo-landing code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }
+    #seo-landing table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 8px 0; }
+    #seo-landing th, #seo-landing td { border: 1px solid #8A5A72; padding: 6px 8px; text-align: left; }
+    #seo-landing th { background: #FFFFFF; }
+    #seo-landing .muted { color: #63515A; font-size: 0.9rem; }
+    /* The motif, in plain HTML: the evening as a track, the worked part filled.
+       The boundary is the line token, never the quiet idle fill. */
+    .bar { height: 18px; border: 1px solid #8A5A72; background: #EBD9E1; border-radius: 3px;
+      overflow: hidden; margin: 6px 0; }
+    .bar > span { display: block; height: 100%; background: #9B1C57; }
+    #flutter-app { height: 82vh; min-height: 520px; border-top: 3px solid #9B1C57; }
+    @media (prefers-color-scheme: dark) {
+      #seo-landing { color: #F1E7EC; background: #1A1218; }
+      #seo-landing h1 { color: #F49CC4; }
+      #seo-landing code { background: rgba(255,255,255,0.12); }
+      #seo-landing th, #seo-landing td { border-color: #A87E92; }
+      #seo-landing th { background: #241A20; }
+      #seo-landing .muted { color: #BCA6B1; }
+      .bar { border-color: #A87E92; background: #3A2A32; }
+      .bar > span { background: #F49CC4; }
+    }
+  </style>
+
+  <!-- The Flutter canvas is not crawlable, so the facts live in real HTML plus
+       JSON-LD. Nothing on this page makes a network call. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "dinanta",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web, Windows, macOS, Linux, Android, iOS",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+    "description": "A salon chair utilisation calculator. Tap the count of each service done today at close, and see chair-minutes worked against chair-minutes open — the capacity number a billing app does not compute. Then print one A4 sheet per month of service mix, chair-minutes and revenue by line, built only from the days you actually recorded."
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How do you calculate chair utilisation in a salon?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Chair-minutes open is the number of chairs you had someone working multiplied by the minutes you were open — chairs worked, not chairs owned, because a chair with nobody behind it is not capacity. Chair-minutes worked is, for each service line, your own menu duration multiplied by the count you did. Utilisation is chair-minutes worked divided by chair-minutes open. Three chairs open from 09:30 to 20:30 is 3 times 660, or 1,980 chair-minutes open; 885 chair-minutes of work against that is 44.69 percent, and 1,095 chair-minutes idle." }
+      },
+      {
+        "@type": "Question",
+        "name": "What is a good chair utilisation for a salon?",
+        "acceptedAnswer": { "@type": "Answer", "text": "dinanta does not know and will not guess. It ships no benchmark, no industry average and no target, because it has no source for one. A walk-in neighbourhood salon is idle by design, so idle chair time is arithmetic, not waste — the number tells you the size of the gap, not what to do about it." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does it count the minutes a customer actually sat in the chair?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. dinanta counts services, not customers and not clock time. Chair-minutes are your menu duration multiplied by your count. If a haircut ran forty minutes tonight instead of the twenty-five on your menu, dinanta does not know that and does not pretend to." }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens on a month where I forgot to record some days?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The sheet is built only from the days you recorded and it says how many: for example, built from 19 of 26 expected open days, not scaled to a full month. Nothing is averaged in, projected or estimated. The sheet also carries the harder caveat — these are the days you recorded, which may not be an average week — because recording only the busy evenings makes utilisation read higher than it was, and no arithmetic can detect that from the inside." }
+      },
+      {
+        "@type": "Question",
+        "name": "How are expected open days worked out?",
+        "acceptedAnswer": { "@type": "Answer", "text": "As a set of calendar dates, not a subtraction of counts: the days of the month, less every date that falls on your weekly off, less every date you marked shut. A date that is both — a holiday that lands on your weekly off — is removed once, not twice. The top of the ratio is a set too: it counts only the closes recorded on those same expected open days. A close recorded on your weekly off is named separately and its work stays in every total, but it is left out of both sides of coverage, because adding it to the top of a fraction whose bottom excludes it makes coverage read higher than it was earned. Subtracting counts on either side would flatter the figure the same way." }
+      },
+      {
+        "@type": "Question",
+        "name": "What if I record more work than the chairs were open?",
+        "acceptedAnswer": { "@type": "Answer", "text": "dinanta shows it and names it: the bar runs past the end of its track and the line reads, for example, recorded work is 60 chair-minutes more than the chairs were open — check tonight's counts or your opening hours. It is never silently capped at 100 percent and your hours are never quietly corrected for you." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does dinanta do appointments, bookings or a customer list?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. It does not book, schedule or reserve anything — it looks backwards at counts you already did, never forwards at slots you might fill. There are no customer names, no phone numbers, no reminders and no repeat-visit tracking. It counts services, never people, which also keeps the file free of anything worth stealing." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is this a billing app, and does it track staff?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Neither. Revenue on the sheet is simply your menu prices times your counts — no discounts, packages, tips, taxes or refunds, and no invoices or receipts. There is no credit or dues ledger of any kind. There is no staff attendance, salary, commission or per-stylist figure, and no staff column will be added: chair-minutes belong to the shop, not to a person." }
+      },
+      {
+        "@type": "Question",
+        "name": "Where does my data go?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Nowhere. The full app is local-first: your data is a SQLite file on your own machine and the app runs on localhost. There is no account, no sync, no encryption and nothing is uploaded — anyone who can open your computer can open the file. This web demo keeps everything in your browser tab and a refresh resets it." }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <main id="seo-landing">
+    <h1>Salon chair utilisation calculator — chair-minutes worked against chair-minutes open, every night</h1>
+
+    <p><strong>dinanta</strong> — <em>dinānta</em>, “day’s end” — is for the owner of a family
+    salon, barbershop or beauty parlour with two to six chairs. You already know what money
+    came in tonight. What you have never once seen is how much of the time your working
+    chairs were actually in use.</p>
+
+    <p><strong>“Chairs open” means the chairs you had someone working</strong> — not the
+    chairs in the room. dinanta keeps no staff of any kind, so it cannot know how many pairs
+    of hands were in today; you apply that when you type the number. A three-chair shop with
+    two people working enters 2. Counting a chair nobody stood behind would make idle chair
+    time read as demand you missed, when it was only an empty chair.</p>
+
+    <p>Entry is a <strong>shutter-down job</strong>: at close, tap the count of each service
+    line you did today. No customer names, no per-visit entry, no appointment book. The
+    worked example below — 42 services across five lines — is <strong>18 taps and a
+    Save</strong>, because holding <code>+</code> adds five at a time. A ten-service night is
+    about eight. Once a month you print one A4 sheet.</p>
+
+    <h2>How chair utilisation is calculated</h2>
+    <p><strong>Chair-minutes open</strong> = <em>chairs you had someone working</em> × minutes
+    open. <strong>Chair-minutes
+    worked</strong> = Σ (your menu duration × your count). <strong>Utilisation</strong> =
+    chair-minutes worked ÷ chair-minutes open, truncated down so it is never overstated by
+    rounding.</p>
+
+    <h2>A worked example</h2>
+    <p>Three chairs with someone working each of them, open
+    <code>09:30</code>–<code>20:30</code> — that is 660 minutes, so
+    <strong>1,980 chair-minutes open</strong>. Tonight: 22 haircuts (25 min), 9 beard trims
+    (15 min), 4 head massages (20 min), 6 threadings (10 min), 1 hair colour (60 min).</p>
+
+    <div class="bar" role="img" aria-label="885 of 1,980 chair-minutes worked"><span style="width:44.69%"></span></div>
+    <p><strong>885 of 1,980 chair-minutes worked · 44.69% · 1,095 chair-minutes idle.</strong>
+    Recorded revenue ₹6,020.00 from 42 services.</p>
+
+    <table>
+      <thead>
+        <tr><th>Service line</th><th>Count</th><th>Chair-minutes</th><th>Minute share<br>÷ worked chair-minutes</th><th>Revenue</th><th>Revenue share<br>÷ recorded revenue</th><th>Per chair-min<br>revenue ÷ chair-minutes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Haircut (men)</td><td>22</td><td>550</td><td>62.15%</td><td>₹3,300.00</td><td>54.82%</td><td>₹6.00</td></tr>
+        <tr><td>Beard trim</td><td>9</td><td>135</td><td>15.25%</td><td>₹720.00</td><td>11.96%</td><td>₹5.33</td></tr>
+        <tr><td>Head massage</td><td>4</td><td>80</td><td>9.04%</td><td>₹800.00</td><td>13.29%</td><td>₹10.00</td></tr>
+        <tr><td>Threading</td><td>6</td><td>60</td><td>6.78%</td><td>₹300.00</td><td>4.98%</td><td>₹5.00</td></tr>
+        <tr><td>Hair colour</td><td>1</td><td>60</td><td>6.78%</td><td>₹900.00</td><td>14.95%</td><td>₹15.00</td></tr>
+      </tbody>
+    </table>
+
+    <p class="muted">Every price and duration above is <strong>made up</strong>. dinanta ships
+    no menu, no price table and no “standard” service duration — it carries no facts about the
+    world at all, so it cites nothing.</p>
+
+    <p class="muted"><strong>Per chair-min</strong> is that line’s revenue ÷ that line’s
+    chair-minutes. It is the gap between the two share columns, as one number: hair colour is
+    6.78% of chair-minutes but 14.95% of revenue, which is <strong>₹15.00 a chair-minute</strong>
+    against threading’s ₹5.00. It is a rate, not a ranking and not advice — dinanta has no view
+    on which line you should do more of, and the rate says nothing about what a minute costs
+    you.</p>
+
+    <p class="muted">The two share columns each add to exactly 100.00%, and they are
+    <em>different numbers</em>, which is why each is printed with its own denominator. The
+    haircut is <strong>62.15% of chair-minutes but 54.82% of revenue</strong>. Reading one as
+    if it were the other is the mistake the labels exist to prevent.</p>
+
+    <h2>The monthly sheet, and what it refuses to do</h2>
+    <p>Pick a month, get one A4 page: coverage, chair-minutes worked against chair-minutes
+    open, and the service-mix table. The sheet is built <strong>only from the days you
+    recorded</strong> and it says how many — <code>built from 19 of 26 expected open
+    days — not scaled to a full month</code>. Nothing is averaged in, projected or estimated to fill a day you
+    missed. A month with few closes recorded gives a small, honest picture, not a small, wrong
+    one.</p>
+
+    <p><strong>dinanta cannot tell whether tonight’s counts are right.</strong> Nothing was
+    watching during the day; it takes the numbers you type at close on trust. Reconstructing
+    forty-odd services across three chairs from memory, or from a till that records amounts
+    rather than service names, is its own layer of estimate underneath the duration estimate.
+    Two estimates in, two decimals out — the decimals are arithmetic, not precision.</p>
+
+    <p>The sheet carries the harder caveat too, in print, beside the coverage figure:
+    <strong>these are the days you recorded, which may not be an average week</strong>.
+    Recording only the busy evenings makes utilisation read higher than it was, and no
+    arithmetic here can detect that from the inside.</p>
+
+    <p><strong>Coverage is a set of dates ÷ a set of dates.</strong> Expected open days = the
+    days of the month, less every date on your weekly off, less every date you marked shut —
+    and a date that is both is removed <em>once</em>, not twice. Count-subtraction would
+    quietly shrink the denominator and inflate coverage every single time.</p>
+
+    <p><strong>The top of the ratio is a set too.</strong> It counts only the closes you
+    recorded on those same expected open days. If you opened on your weekly off, that close
+    is named on the sheet — <code>also recorded: 2 closes on days that were your weekly off
+    or marked shut</code> — and every count, minute and rupee from it is in the totals. It is
+    left out of <em>both</em> sides of coverage, because adding it to the top of a fraction
+    whose bottom excludes it makes coverage read higher than it was earned.</p>
+
+    <h2>What it will not do</h2>
+    <p><strong>No appointments, bookings, slots or reservations</strong> — dinanta looks
+    backwards at counts you already did, never forwards at slots you might fill. No customer
+    names, phone numbers or repeat-visit tracking. <strong>No staff attendance, salary,
+    commission or per-stylist figures</strong>: chair-minutes belong to the shop, not to a
+    person, and there is no staff column and never will be. No stock or product-consumption
+    tracking. No invoices, receipts or GST. <strong>No credit, udhaar or dues ledger of any
+    kind.</strong> No verdicts, targets, benchmarks, grades or forecasts. No accounts, no
+    sync, no AI.</p>
+
+    <p><strong>What it does over the network: nothing third-party.</strong> The full app runs
+    on localhost and uploads nothing. This page loads its own code, its own fonts and its own
+    CanvasKit from this origin — no CDN, no <code>gstatic.com</code>, no analytics, no
+    trackers. The one URL the Flutter engine would otherwise reach for is its fallback-font
+    host, used when a glyph is missing from the bundled fonts; that is pinned to a path on
+    this origin, so a missing glyph renders as a blank box instead of fetching from Google.
+    Nothing you type here leaves the page.</p>
+
+    <h2>Try it below</h2>
+    <p>The app below is loaded with a made-up month for a salon that does not exist. Edit it,
+    tap your own counts, print the sheet — nothing you type leaves this page.</p>
+  </main>
+
+  <div id="flutter-app"></div>
+
+  <script src="flutter.js" defer></script>
+  <!-- buildConfig is injected here at build time from the generated
+       flutter_bootstrap.js (scripts/build-web.sh). Without it the loader throws
+       "requires _flutter.buildConfig" and the app below never mounts. -->
+  <script>window._flutter=window._flutter||{};_flutter.buildConfig = {"engineRevision":"c416acfeb8126e097f758c664aaa3da929e27da0","builds":[{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"},{}],"useLocalCanvasKit":true};</script>
+  <script>
+    window.addEventListener("load", function () {
+      _flutter.loader.load({ config: {
+        hostElement: document.getElementById("flutter-app"),
+        // The engine's fallback-font base URL defaults to
+        // "https://fonts.gstatic.com/s/" and is fetched when a glyph is missing
+        // from the bundled fonts. Left at its default, this page could make a
+        // request to Google while claiming to be offline, so it is pinned to a
+        // path under this origin: a missing glyph renders as tofu instead, and
+        // nothing third-party is ever contacted. The limit is stated on the
+        // page rather than hidden here.
+        fontFallbackBaseUrl: "fallback-fonts/"
+      } });
+    });
+  </script>
+</body>
+</html>
